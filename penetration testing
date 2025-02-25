@@ -1,0 +1,127 @@
+import socket
+import requests
+import threading
+import paramiko
+import itertools
+import scapy.all as scapy
+from queue import Queue
+
+
+# Port Scanner
+def port_scanner(target, ports):
+    print(f"Scanning target {target}...")
+    for port in ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((target, port))
+        if result == 0:
+            print(f"[+] Port {port} is open")
+        sock.close()
+
+
+# SSH Brute Force
+def ssh_brute_force(target, username, password_file):
+    with open(password_file, "r") as file:
+        passwords = file.readlines()
+
+    for password in passwords:
+        password = password.strip()
+        print(f"Trying: {username}:{password}")
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh.connect(target, username=username, password=password)
+            print(f"[+] Found valid credentials: {username}:{password}")
+            ssh.close()
+            return
+        except paramiko.AuthenticationException:
+            continue
+        except Exception as e:
+            print(f"[-] Error: {e}")
+            break
+    print("[-] No valid credentials found.")
+
+
+# HTTP Directory Brute Force
+def directory_brute_force(target, wordlist):
+    with open(wordlist, "r") as file:
+        paths = file.readlines()
+
+    for path in paths:
+        path = path.strip()
+        url = f"{target}/{path}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            print(f"[+] Found directory: {url}")
+
+
+# Network Packet Sniffer
+def packet_sniffer(interface):
+    print(f"[*] Sniffing on {interface}...")
+    scapy.sniff(iface=interface, store=False, prn=lambda packet: packet.summary())
+
+
+# Subdomain Scanner
+def subdomain_scanner(domain, subdomains_file):
+    with open(subdomains_file, "r") as file:
+        subdomains = file.readlines()
+
+    for sub in subdomains:
+        sub = sub.strip()
+        url = f"http://{sub}.{domain}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                print(f"[+] Found subdomain: {url}")
+        except requests.ConnectionError:
+            continue
+
+
+# Interactive Menu
+def main():
+    while True:
+        print("\nPenetration Testing Toolkit")
+        print("1. Port Scanner")
+        print("2. SSH Brute Force")
+        print("3. Directory Brute Force")
+        print("4. Network Packet Sniffer")
+        print("5. Subdomain Scanner")
+        print("6. Exit")
+
+        choice = input("Select an option: ")
+
+        if choice == "1":
+            target = input("Enter target IP: ")
+            ports = list(map(int, input("Enter ports (comma separated): ").split(',')))
+            port_scanner(target, ports)
+
+        elif choice == "2":
+            target = input("Enter target IP: ")
+            username = input("Enter SSH username: ")
+            password_file = input("Enter path to password list: ")
+            ssh_brute_force(target, username, password_file)
+
+        elif choice == "3":
+            target = input("Enter target URL (e.g., http://example.com): ")
+            wordlist = input("Enter path to wordlist: ")
+            directory_brute_force(target, wordlist)
+
+        elif choice == "4":
+            interface = input("Enter network interface (e.g., eth0): ")
+            packet_sniffer(interface)
+
+        elif choice == "5":
+            domain = input("Enter domain (e.g., example.com): ")
+            subdomains_file = input("Enter path to subdomains list: ")
+            subdomain_scanner(domain, subdomains_file)
+
+        elif choice == "6":
+            print("Exiting...")
+            break
+
+        else:
+            print("Invalid option, try again.")
+
+
+if __name__ == "__main__":
+    main()
